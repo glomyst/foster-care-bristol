@@ -6,8 +6,8 @@ export default function Main({ records, handleFavourite, favourites }) {
     <>
       <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2">
         {records.map((data, i) => {
-          // const lon = data?.geometry?.coordinates[0] ?? null;
-          // const lat = data?.geometry?.coordinates[1] ?? null;
+          const lon = data?.geometry?.coordinates[0] ?? null;
+          const lat = data?.geometry?.coordinates[1] ?? null;
           let favourited = false;
 
           favourites.forEach((favourite) => {
@@ -15,10 +15,6 @@ export default function Main({ records, handleFavourite, favourites }) {
               favourited = true;
             }
           });
-          // if (favourites.includes(data?.fields)) favourited = true;
-
-          const lon = null;
-          const lat = null;
 
           const img =
             lat && lon
