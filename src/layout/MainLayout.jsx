@@ -6,6 +6,7 @@ import Main from "../components/Main";
 import Side from "../components/Side";
 import axios from "axios";
 import Skeleton from "../components/Skeleton";
+import useLocalStorage from "use-local-storage";
 
 const user = {
   name: "Tom Cook",
@@ -31,15 +32,16 @@ function classNames(...classes) {
 }
 
 export default function MainLayout() {
-  const [records, setRecords] = useState([]);
+  const [records, setRecords] = useLocalStorage("records", []);
+  const [favourites, setFavourites] = useLocalStorage("favourites", []);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     handleApiFetch();
   }, []);
 
-  const handleApiFetch = () => {
+  const handleApiFetch = (search = "") => {
     setLoading(true);
-    axios.get(getUrl()).then((respose) => {
+    axios.get(getUrl(search)).then((respose) => {
       setRecords(respose?.data?.records);
       setLoading(false);
     });
@@ -50,7 +52,34 @@ export default function MainLayout() {
     return `https://opendata.bristol.gov.uk/api/records/1.0/search/?dataset=foster-care-placements-number-of-children-in-bristol&sort=ward_name&facet=ward_name&facet=period${query}`;
   };
 
-  console.log(records);
+  const handleSearch = (value) => {
+    handleApiFetch(value);
+  };
+
+  const handleFavourite = (code) => {
+    let includes = false;
+
+    favourites.forEach((favourite) => {
+      console.log(
+        favourite?.foster_care_placements_number_of_children.replace(
+          /[^0-9]+/g,
+          ""
+        )
+      );
+      if (favourite?.ward_code === code?.ward_code) {
+        includes = true;
+      }
+    });
+
+    const temp_fav = [...favourites];
+    if (includes) {
+      temp_fav.splice(temp_fav.indexOf(code), 1);
+    } else {
+      temp_fav.push(code);
+    }
+
+    setFavourites([...temp_fav]);
+  };
 
   return (
     <>
@@ -140,6 +169,10 @@ export default function MainLayout() {
                           placeholder="Search"
                           type="search"
                           name="search"
+                          onChange={(e) => {
+                            if (e.target.value.length > 2)
+                              handleSearch(e.target.value);
+                          }}
                         />
                       </div>
                     </div>
@@ -201,6 +234,9 @@ export default function MainLayout() {
                             placeholder="Search"
                             type="search"
                             name="search"
+                            onChange={(e) => {
+                              handleSearch(e.target.value);
+                            }}
                           />
                         </div>
                       </div>
@@ -351,7 +387,13 @@ export default function MainLayout() {
                     Section title
                   </h2>
                   <div className="overflow-hidden rounded-lg bg-white shadow p-5">
-                    {!loading && records && <Main records={records} />}
+                    {!loading && records && favourites && (
+                      <Main
+                        records={records}
+                        handleFavourite={handleFavourite}
+                        favourites={favourites}
+                      />
+                    )}
                     {loading && <Skeleton />}
                   </div>
                 </section>
@@ -365,7 +407,12 @@ export default function MainLayout() {
                   </h2>
                   <div className="overflow-hidden rounded-lg bg-white shadow">
                     <div className="p-6">
-                      <Side />
+                      {favourites && (
+                        <Side
+                          favourites={favourites}
+                          handleFavourite={handleFavourite}
+                        />
+                      )}
                     </div>
                   </div>
                 </section>
