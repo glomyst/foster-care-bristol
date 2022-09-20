@@ -1,11 +1,43 @@
 import { XCircleIcon } from "@heroicons/react/20/solid";
 import { HeartIcon } from "@heroicons/react/24/outline";
 import React from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { PieChart, Pie } from "recharts";
 
-export default function Side({ favourites, handleFavourite }) {
+export default function Side({ favourites, handleFavourite, chartData }) {
   return (
     <div>
       <h2 className="mb-5 font-bold">Favourites</h2>
+
+      {favourites.length > 0 && (
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer>
+            <PieChart width={400} height={400}>
+              <Pie
+                dataKey="value"
+                isAnimationActive={false}
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label
+              />
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       <ul className="grid grid-cols-1 gap-4">
         {favourites.map((favourite, i) => (
           <li

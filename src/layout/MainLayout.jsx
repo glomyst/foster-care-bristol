@@ -7,25 +7,7 @@ import Side from "../components/Side";
 import axios from "axios";
 import Skeleton from "../components/Skeleton";
 import useLocalStorage from "use-local-storage";
-
-const user = {
-  name: "Tom Cook",
-  email: "tom@example.com",
-  imageUrl:
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
-const navigation = [
-  { name: "Home", href: "#", current: true },
-  { name: "Profile", href: "#", current: false },
-  { name: "Resources", href: "#", current: false },
-  { name: "Company Directory", href: "#", current: false },
-  { name: "Openings", href: "#", current: false },
-];
-const userNavigation = [
-  { name: "Your Profile", href: "#" },
-  { name: "Settings", href: "#" },
-  { name: "Sign out", href: "#" },
-];
+import InfiniteScroll from "react-infinite-scroll-component";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -35,6 +17,8 @@ export default function MainLayout() {
   const [records, setRecords] = useLocalStorage("records", []);
   const [favourites, setFavourites] = useLocalStorage("favourites", []);
   const [loading, setLoading] = useState(false);
+  const [chartData, setChartData] = useLocalStorage("chartdata", null);
+  const [moreLoading, setMoreLoading] = useState(false);
   useEffect(() => {
     handleApiFetch();
   }, []);
@@ -47,9 +31,19 @@ export default function MainLayout() {
     });
   };
 
-  const getUrl = (search = "") => {
+  const loadMore = async () => {
+    setMoreLoading(true);
+    await axios.get(getUrl("", records.length + 1)).then((respose) => {
+      console.log([...records, respose?.data?.records]);
+      setRecords([...records, ...respose?.data?.records]);
+      setMoreLoading(false);
+    });
+  };
+
+  const getUrl = (search = "", start = null) => {
     const query = search ? `&q=${search}` : "";
-    return `https://opendata.bristol.gov.uk/api/records/1.0/search/?dataset=foster-care-placements-number-of-children-in-bristol&sort=ward_name&facet=ward_name&facet=period${query}`;
+    const startFrom = start ? `&start=${start}` : "";
+    return `https://opendata.bristol.gov.uk/api/records/1.0/search/?dataset=foster-care-placements-number-of-children-in-bristol&sort=ward_name&facet=ward_name&facet=period${query}${startFrom}`;
   };
 
   const handleSearch = (value) => {
@@ -60,12 +54,6 @@ export default function MainLayout() {
     let includes = false;
 
     favourites.forEach((favourite) => {
-      console.log(
-        favourite?.foster_care_placements_number_of_children.replace(
-          /[^0-9]+/g,
-          ""
-        )
-      );
       if (favourite?.ward_code === code?.ward_code) {
         includes = true;
       }
@@ -78,6 +66,16 @@ export default function MainLayout() {
       temp_fav.push(code);
     }
 
+    // set chart data
+    const tmp_chartData = [];
+    temp_fav.forEach((fav) => {
+      const children = Number(
+        fav?.foster_care_placements_number_of_children.replace(/[^0-9]+/g, "")
+      );
+      tmp_chartData.push({ name: fav?.ward_name, value: children });
+    });
+
+    setChartData(tmp_chartData);
     setFavourites([...temp_fav]);
   };
 
@@ -90,64 +88,20 @@ export default function MainLayout() {
               <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-7xl lg:px-8">
                 <div className="relative flex items-center justify-center py-5 lg:justify-between">
                   {/* Logo */}
-                  <div className="absolute left-0 flex-shrink-0 lg:static">
+                  <div className="absolute left-0 flex-shrink-0 lg:static hidden lg:block">
                     <a href="#">
                       <span className="sr-only">Your Company</span>
-                      <img
-                        className="h-8 w-auto"
-                        src="https://tailwindui.com/img/logos/mark.svg?color=teal&shade=300"
-                        alt="Your Company"
-                      />
-                    </a>
-                  </div>
-
-                  {/* Right section on desktop */}
-                  <div className="hidden lg:ml-4 lg:flex lg:items-center lg:pr-0.5">
-                    <button
-                      type="button"
-                      className="flex-shrink-0 rounded-full p-1 text-teal-200 hover:bg-white hover:bg-opacity-10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                      <span className="sr-only">View notifications</span>
-                      <BellIcon className="h-6 w-6" aria-hidden="true" />
-                    </button>
-
-                    {/* Profile dropdown */}
-                    <Menu as="div" className="relative ml-4 flex-shrink-0">
-                      <div>
-                        <Menu.Button className="flex rounded-full bg-white text-sm ring-2 ring-white ring-opacity-20 focus:outline-none focus:ring-opacity-100">
-                          <span className="sr-only">Open user menu</span>
-                          <img
-                            className="h-8 w-8 rounded-full"
-                            src={user.imageUrl}
-                            alt=""
-                          />
-                        </Menu.Button>
+                      <div className="flex items-center justify-center">
+                        <img
+                          className="h-10 w-auto"
+                          src="https://images.squarespace-cdn.com/content/601c45f54889e53f2440675b/1612466254198-X43E4X5015FNF5JWSGVF/We+Care+Foster+Care+Logo.png?format=1500w&content-type=image%2Fpng"
+                          alt="Your Company"
+                        />
+                        <span className="pl-5 text-white font-bold">
+                          Foster Care Bristol
+                        </span>
                       </div>
-                      <Transition
-                        as={Fragment}
-                        leave="transition ease-in duration-75"
-                        leaveFrom="transform opacity-100 scale-100"
-                        leaveTo="transform opacity-0 scale-95"
-                      >
-                        <Menu.Items className="absolute -right-2 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                          {userNavigation.map((item) => (
-                            <Menu.Item key={item.name}>
-                              {({ active }) => (
-                                <a
-                                  href={item.href}
-                                  className={classNames(
-                                    active ? "bg-gray-100" : "",
-                                    "block px-4 py-2 text-sm text-gray-700"
-                                  )}
-                                >
-                                  {item.name}
-                                </a>
-                              )}
-                            </Menu.Item>
-                          ))}
-                        </Menu.Items>
-                      </Transition>
-                    </Menu>
+                    </a>
                   </div>
 
                   {/* Search */}
@@ -177,47 +131,11 @@ export default function MainLayout() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Menu button */}
-                  <div className="absolute right-0 flex-shrink-0 lg:hidden">
-                    {/* Mobile menu button */}
-                    <Popover.Button className="inline-flex items-center justify-center rounded-md bg-transparent p-2 text-teal-200 hover:bg-white hover:bg-opacity-10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white">
-                      <span className="sr-only">Open main menu</span>
-                      {open ? (
-                        <XMarkIcon
-                          className="block h-6 w-6"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Bars3Icon
-                          className="block h-6 w-6"
-                          aria-hidden="true"
-                        />
-                      )}
-                    </Popover.Button>
-                  </div>
                 </div>
                 <div className="hidden border-t border-white border-opacity-20 py-5 lg:block">
-                  <div className="grid grid-cols-3 items-center gap-8">
-                    <div className="col-span-2">
-                      <nav className="flex space-x-4">
-                        {navigation.map((item) => (
-                          <a
-                            key={item.name}
-                            href={item.href}
-                            className={classNames(
-                              item.current ? "text-white" : "text-teal-100",
-                              "text-sm font-medium rounded-md bg-white bg-opacity-0 px-3 py-2 hover:bg-opacity-10"
-                            )}
-                            aria-current={item.current ? "page" : undefined}
-                          >
-                            {item.name}
-                          </a>
-                        ))}
-                      </nav>
-                    </div>
+                  <div className="grid grid-cols-1 items-center gap-8">
                     <div>
-                      <div className="mx-auto w-full max-w-md">
+                      <div className="mx-auto w-full">
                         <label htmlFor="mobile-search" className="sr-only">
                           Search
                         </label>
@@ -244,134 +162,6 @@ export default function MainLayout() {
                   </div>
                 </div>
               </div>
-
-              <Transition.Root as={Fragment}>
-                <div className="lg:hidden">
-                  <Transition.Child
-                    as={Fragment}
-                    enter="duration-150 ease-out"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="duration-150 ease-in"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                  >
-                    <Popover.Overlay className="fixed inset-0 z-20 bg-black bg-opacity-25" />
-                  </Transition.Child>
-
-                  <Transition.Child
-                    as={Fragment}
-                    enter="duration-150 ease-out"
-                    enterFrom="opacity-0 scale-95"
-                    enterTo="opacity-100 scale-100"
-                    leave="duration-150 ease-in"
-                    leaveFrom="opacity-100 scale-100"
-                    leaveTo="opacity-0 scale-95"
-                  >
-                    <Popover.Panel
-                      focus
-                      className="absolute inset-x-0 top-0 z-30 mx-auto w-full max-w-3xl origin-top transform p-2 transition"
-                    >
-                      <div className="divide-y divide-gray-200 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
-                        <div className="pt-3 pb-2">
-                          <div className="flex items-center justify-between px-4">
-                            <div>
-                              <img
-                                className="h-8 w-auto"
-                                src="https://tailwindui.com/img/logos/mark.svg?color=teal&shade=600"
-                                alt="Your Company"
-                              />
-                            </div>
-                            <div className="-mr-2">
-                              <Popover.Button className="inline-flex items-center justify-center rounded-md bg-white p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500">
-                                <span className="sr-only">Close menu</span>
-                                <XMarkIcon
-                                  className="h-6 w-6"
-                                  aria-hidden="true"
-                                />
-                              </Popover.Button>
-                            </div>
-                          </div>
-                          <div className="mt-3 space-y-1 px-2">
-                            <a
-                              href="#"
-                              className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                            >
-                              Home
-                            </a>
-                            <a
-                              href="#"
-                              className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                            >
-                              Profile
-                            </a>
-                            <a
-                              href="#"
-                              className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                            >
-                              Resources
-                            </a>
-                            <a
-                              href="#"
-                              className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                            >
-                              Company Directory
-                            </a>
-                            <a
-                              href="#"
-                              className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                            >
-                              Openings
-                            </a>
-                          </div>
-                        </div>
-                        <div className="pt-4 pb-2">
-                          <div className="flex items-center px-5">
-                            <div className="flex-shrink-0">
-                              <img
-                                className="h-10 w-10 rounded-full"
-                                src={user.imageUrl}
-                                alt=""
-                              />
-                            </div>
-                            <div className="ml-3 min-w-0 flex-1">
-                              <div className="truncate text-base font-medium text-gray-800">
-                                {user.name}
-                              </div>
-                              <div className="truncate text-sm font-medium text-gray-500">
-                                {user.email}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="ml-auto flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-                            >
-                              <span className="sr-only">
-                                View notifications
-                              </span>
-                              <BellIcon
-                                className="h-6 w-6"
-                                aria-hidden="true"
-                              />
-                            </button>
-                          </div>
-                          <div className="mt-3 space-y-1 px-2">
-                            {userNavigation.map((item) => (
-                              <a
-                                key={item.name}
-                                href={item.href}
-                                className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-800"
-                              >
-                                {item.name}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </Popover.Panel>
-                  </Transition.Child>
-                </div>
-              </Transition.Root>
             </>
           )}
         </Popover>
@@ -387,14 +177,21 @@ export default function MainLayout() {
                     Section title
                   </h2>
                   <div className="overflow-hidden rounded-lg bg-white shadow p-5">
-                    {!loading && records && favourites && (
-                      <Main
-                        records={records}
-                        handleFavourite={handleFavourite}
-                        favourites={favourites}
-                      />
-                    )}
+                    <InfiniteScroll
+                      dataLength={records.length}
+                      next={loadMore}
+                      hasMore={true}
+                    >
+                      {!loading && records && favourites && (
+                        <Main
+                          records={records}
+                          handleFavourite={handleFavourite}
+                          favourites={favourites}
+                        />
+                      )}
+                    </InfiniteScroll>
                     {loading && <Skeleton />}
+                    {moreLoading && <Skeleton />}
                   </div>
                 </section>
               </div>
@@ -411,6 +208,7 @@ export default function MainLayout() {
                         <Side
                           favourites={favourites}
                           handleFavourite={handleFavourite}
+                          chartData={chartData}
                         />
                       )}
                     </div>
